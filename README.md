@@ -24,11 +24,12 @@ cmd/multiclusterapp.go:724:5: app.Timeout undefined (type *"github.com/rancher/t
 
 
 # 使用
-
+```
 ./main login https://47.104.225.225 --skip-verify --token token-2x6mg:bnlgj5msvxbg9hk5xgr9t88t5l557knrw6rcvrlndg5xhvt9qv7cq5
 # 其中，--token 后部分是从rancher登录过程获取的会话token
+```
 
-执行示例：
+# # 执行示例：
 ```
 [root@iZm5efctez2mq4wk8wbhsyZ cli]# ./main login https://47.104.225.225 --skip-verify --token token-hpv9d:bc8rfl4gnxmsl796lzlnhsxbwzn5mtzjw7hl6gq5kgbpzj6m6q42r4
 NUMBER    CLUSTER NAME   PROJECT ID        PROJECT NAME   PROJECT DESCRIPTION
