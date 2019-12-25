@@ -1,144 +1,58 @@
 package main
 
 import (
-	"os"
+	"fmt"
+	"time"
 
-	"regexp"
-	"strings"
-
-	"github.com/pkg/errors"
-	"github.com/rancher/cli/cmd"
-	rancherprompt "github.com/rancher/cli/rancher_prompt"
-	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
+	"github.com/gogf/gf/frame/g"
+	"github.com/rancher/cli/api"
 )
 
-var VERSION = "dev"
-
-var AppHelpTemplate = `{{.Usage}}
-
-Usage: {{.Name}} {{if .Flags}}[OPTIONS] {{end}}COMMAND [arg...]
-
-Version: {{.Version}}
-{{if .Flags}}
-Options:
-  {{range .Flags}}{{if .Hidden}}{{else}}{{.}}
-  {{end}}{{end}}{{end}}
-Commands:
-  {{range .Commands}}{{.Name}}{{with .Aliases}}, {{.}}{{end}}{{ "\t" }}{{.Usage}}
-  {{end}}
-Run '{{.Name}} COMMAND --help' for more information on a command.
-`
-
-var CommandHelpTemplate = `{{.Usage}}
-{{if .Description}}{{.Description}}{{end}}
-Usage: 
-	{{.HelpName}} {{if .Flags}}[OPTIONS] {{end}}{{if ne "None" .ArgsUsage}}{{if ne "" .ArgsUsage}}{{.ArgsUsage}}{{else}}[arg...]{{end}}{{end}}
-
-{{if .Flags}}Options:{{range .Flags}}
-	 {{.}}{{end}}{{end}}
-`
-
-var SubcommandHelpTemplate = `{{.Usage}}
-{{if .Description}}{{.Description}}{{end}}
-Usage:
-   {{.HelpName}} command{{if .VisibleFlags}} [command options]{{end}} {{if .ArgsUsage}}{{.ArgsUsage}}{{else}}[arguments...]{{end}}
-
-Commands:{{range .VisibleCategories}}{{if .Name}}
-   {{.Name}}:{{end}}{{range .VisibleCommands}}
-     {{join .Names ", "}}{{"\t"}}{{.Usage}}{{end}}
-{{end}}{{if .VisibleFlags}}
-Options:
-   {{range .VisibleFlags}}{{.}}
-   {{end}}{{end}}
-`
-
-func main() {
-	if err := mainErr(); err != nil {
-		logrus.Fatal(err)
-	}
+var serverCtx = api.ServerContext{
+	StartAt: time.Now().Unix(),
 }
 
-func mainErr() error {
-	cli.AppHelpTemplate = AppHelpTemplate
-	cli.CommandHelpTemplate = CommandHelpTemplate
-	cli.SubcommandHelpTemplate = SubcommandHelpTemplate
+func init() {
+	g.Cfg().SetFileName("config/config.yaml")
 
-	app := cli.NewApp()
-	app.Name = "rancher"
-	app.Usage = "Rancher CLI, managing containers one UTF-8 character at a time"
-	app.Before = func(ctx *cli.Context) error {
-		if ctx.GlobalBool("debug") {
-			logrus.SetLevel(logrus.DebugLevel)
-		}
-		return nil
-	}
-	app.Version = VERSION
-	app.Author = "Rancher Labs, Inc."
-	app.Email = ""
-	app.Flags = []cli.Flag{
-		cli.BoolFlag{
-			Name:  "debug",
-			Usage: "Debug logging",
-		},
-	}
-	app.Commands = []cli.Command{
-		cmd.AppCommand(),
-		cmd.CatalogCommand(),
-		cmd.ClusterCommand(),
-		cmd.ContextCommand(),
-		cmd.GlobalDNSCommand(),
-		cmd.InspectCommand(),
-		cmd.KubectlCommand(),
-		cmd.LoginCommand(),
-		cmd.MultiClusterAppCommand(),
-		cmd.NamespaceCommand(),
-		cmd.NodeCommand(),
-		cmd.ProjectCommand(),
-		cmd.PsCommand(),
-		cmd.ServerCommand(),
-		cmd.SettingsCommand(),
-		cmd.SSHCommand(),
-		cmd.UpCommand(),
-		cmd.WaitCommand(),
-	}
-
-	for _, com := range app.Commands {
-		rancherprompt.Commands[com.Name] = com
-		rancherprompt.Commands[com.ShortName] = com
-	}
-	rancherprompt.Flags = app.Flags
-	parsed, err := parseArgs(os.Args)
+	// init Server Context
+	ip, err := api.ExternalIP()
 	if err != nil {
-		logrus.Error(err)
-		os.Exit(1)
+		fmt.Println(err)
 	}
+	serverCtx.HostIP = string(ip)
+	serverCtx.Port = g.Cfg().GetInt("base.port")
+	serverCtx.Server = g.Server()
+	serverCtx.RancherHost = g.Cfg().GetString("base.rancherHost")
+	serverCtx.UserConfigs = make(map[string]*api.UserConfig)
 
-	return app.Run(parsed)
+	// init routers
+	serverCtx.Server.BindHandler("/login", serverCtx.Login)
+	serverCtx.Server.BindHandler("/cluster/list", serverCtx.ClusterLs)
+	serverCtx.Server.BindHandler("/project/list", serverCtx.ProjectLs)
+	serverCtx.Server.BindHandler("/project/get", serverCtx.ProjectGetByID)
+	serverCtx.Server.BindHandler("/service/list", serverCtx.ServiceLs)
+	serverCtx.Server.BindHandler("/pipeline/list", serverCtx.PipelineLs)
+	serverCtx.Server.BindHandler("/pipeline/get", serverCtx.PipelineGetByID)
+	serverCtx.Server.BindHandler("/pipeline/create", serverCtx.PipelineCreate)
+	serverCtx.Server.BindHandler("/pipelineexecution/list", serverCtx.PipelineExecutionLs)
+	serverCtx.Server.BindHandler("/pipelineexecution/get", serverCtx.PipelineExecutionGetByID)
+	serverCtx.Server.BindHandler("/pipelineexecution/create", serverCtx.PipelineExecutionCreate)
+	serverCtx.Server.BindHandler("/workload/list", serverCtx.WorkloadLs)
+	serverCtx.Server.BindHandler("/deployment/list", serverCtx.DeploymentLs)
+	serverCtx.Server.BindHandler("/deployment/get", serverCtx.DeploymentGetByID)
+	serverCtx.Server.BindHandler("/deployment/create", serverCtx.DeploymentCreate)
+	serverCtx.Server.BindHandler("/sourceCodeRepository/list", serverCtx.SourceCodeRepositoryLs)
+	serverCtx.Server.BindHandler("/sourceCodeCredential/list", serverCtx.SourceCodeCredentialLs)
+	serverCtx.Server.BindHandler("/sourceCodeCredential/get", serverCtx.SourceCodeCredentialGetByID)
+	serverCtx.Server.BindHandler("/sourceCodeProvider/list", serverCtx.SourceCodeProviderLs)
+	serverCtx.Server.BindHandler("/sourceCodeProviderConfig/list", serverCtx.SourceCodeProviderConfigLs)
+
 }
 
-var singleAlphaLetterRegxp = regexp.MustCompile("[a-zA-Z]")
 
-func parseArgs(args []string) ([]string, error) {
-	result := []string{}
-	for _, arg := range args {
-		if strings.HasPrefix(arg, "-") && !strings.HasPrefix(arg, "--") && len(arg) > 1 {
-			for i, c := range arg[1:] {
-				if string(c) == "=" {
-					if i < 1 {
-						return nil, errors.New("invalid input with '-' and '=' flag")
-					}
-					result[len(result)-1] = result[len(result)-1] + arg[i+1:]
-					break
-				} else if singleAlphaLetterRegxp.MatchString(string(c)) {
-					result = append(result, "-"+string(c))
-				} else {
-					return nil, errors.Errorf("invalid input %v in flag", string(c))
-				}
-			}
-		} else {
-			result = append(result, arg)
-		}
-	}
-	return result, nil
+func main(){
+	fmt.Println("Server Staring...")
+	serverCtx.Server.SetPort(serverCtx.Port)
+	serverCtx.Server.Run()
 }

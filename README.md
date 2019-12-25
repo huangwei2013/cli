@@ -1,46 +1,101 @@
-# 背景说明
-rancher对应api的cli项目，github.com/rancher/cli(2.x版本的Rancher API)
-将改造成一个Server版的Rancher API项目
-
-# 安装和运行
-
-go get github.com/rancher/cli
-# # 处理一系列依赖问题后
-
-# # 编译
-go build main.go
-
-# # 问题1：
-```
-[root@iZm5efctez2mq4wk8wbhsyZ cli]# go build main.go
-# github.com/rancher/cli/cmd
-cmd/multiclusterapp.go:723:5: app.Wait undefined (type *"github.com/rancher/types/client/management/v3".MultiClusterApp has no field or method Wait)
-cmd/multiclusterapp.go:724:5: app.Timeout undefined (type *"github.com/rancher/types/client/management/v3".MultiClusterApp has no field or method Timeout)
-
-# 解决方法：
-进入 ./cmd/multiclusterapp.go
-将723、724两行屏蔽，再次编译
-```
 
 
-# 使用
-```
-./main login https://47.104.225.225 --skip-verify --token token-2x6mg:bnlgj5msvxbg9hk5xgr9t88t5l557knrw6rcvrlndg5xhvt9qv7cq5
-# 其中，--token 后部分是从rancher登录过程获取的会话token
+# 项目说明
+基于rancher/cli项目进行的改造
+* 适用于 rancher2.x
+* 主要依赖
+    * rancher/types       // rancher2.x API库
+    * rancher/norman      // rancher/types 的支撑
+    * goframe             // server化框架
+
+# 环境和依赖
+## 环境
+    golang ： go version go1.13.4 linux/amd64
+    rancher : 2.3
+
+## 第三方依赖
+
+* 环境设置
+所有依赖包安装，都先设置环境变量
+```shell
+export GO111MODULE="on"
+export GOPROXY=https://goproxy.cn
 ```
 
-# # 执行示例：
-```
-[root@iZm5efctez2mq4wk8wbhsyZ cli]# ./main login https://47.104.225.225 --skip-verify --token token-hpv9d:bc8rfl4gnxmsl796lzlnhsxbwzn5mtzjw7hl6gq5kgbpzj6m6q42r4
-NUMBER    CLUSTER NAME   PROJECT ID        PROJECT NAME   PROJECT DESCRIPTION
-1         test           c-9ktxk:p-fnlq6   Default        Default project created for the cluster
-2         test           c-9ktxk:p-p7g9n   System         System project created for the cluster
-3         test1          c-sr5l6:p-ksk7z   System         System project created for the cluster
-4         test1          c-sr5l6:p-vtr8l   Default        Default project created for the cluster
-Select a Project:1
-INFO[0002] Saving config to /root/.rancher/cli2.json
+* golang.org相关包
+可在以下目录寻找，并clone到 ${GOPATH}/src/golang.org/ 对应目录下
+```shell
+https://github.com/golang
 ```
 
-# 文档
+# 通信协议
+Json
+## 输入
+参看每个接口具体的情况
+```shell
+{
+    "key":"value",
+    "key":"value",
+    "key":"value",
+}
+```
 
-https://rancher.com/docs/rancher/v2.x/en/cli/  官方使用帮助，挺有用
+## 输出
+```shell
+{
+    code:int,   //=0:成功; 非0:失败（错误码还未详细定义）
+    msg:string, //code=0时统一为ok; code!=0时为错误提示
+    data:array, //输出数据，没有数据时为空数组
+}
+```
+
+# 程序结构
+## 配置
+参看 config/config.yaml
+
+## server
+入口是 main.go
+运行后会启动一个 http 服务器
+
+## api
+参看 api/
+
+
+# 运行和调用
+## 运行
+```shell
+go run main.go
+```
+
+## 调用
+启动后，需要先调用login接口，成功后的后续调用，需传入login接口返回的token参数
+* 接口文档暂未提供
+* 返回的信息暂未规整，返回的东西比较多
+
+## 实体层次和调用前置条件说明
+- cluster：预先设置(创建好)，无须改动
+- project：预先设置(创建好)，无须改动
+    - 对下面的实体，调用时都要指定 project(通过入参 projectId)
+- namespace
+- pipeline
+    - 对应CI的配置
+- pipeline execution
+    - 对应一次CI的执行，所以依赖对应的pipeline(通过入参 pipelineId)
+- deployment
+    - 对应CD
+    - 生成的镜像image，会直接通过rancher server写入regitry
+        - rancher 的 registry 服务，预先设置好
+- workload
+    - 一个很大的信息集合，主要包括当前 cluster 中的所有活动实体信息
+        - pods（包含containers信息）都在其中
+        - images的信息，rancher目前是通过 workload 这个大实体来传递给前端的
+                    
+
+
+# TODO
+* 业务逻辑
+    - 特别是网络部分
+* 错误码规整
+* 日志
+
+# 欢迎交流

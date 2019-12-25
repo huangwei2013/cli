@@ -62,7 +62,6 @@ func (a *APIOperations) DoGet(url string, opts *types.ListOpts, respObject inter
 	if Debug {
 		fmt.Println("GET " + url)
 	}
-
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return err

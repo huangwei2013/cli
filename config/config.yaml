@@ -1,0 +1,4 @@
+
+base:
+  port: 8199
+  rancherHost: 47.104.225.225
