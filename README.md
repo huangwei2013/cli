@@ -70,26 +70,7 @@ go run main.go
 ## 调用
 启动后，需要先调用login接口，成功后的后续调用，需传入login接口返回的token参数
 * 接口文档暂未提供
-* 返回的信息暂未规整，返回的东西比较多
-
-## 实体层次和调用前置条件说明
-- cluster：预先设置(创建好)，无须改动
-- project：预先设置(创建好)，无须改动
-    - 对下面的实体，调用时都要指定 project(通过入参 projectId)
-- namespace
-- pipeline
-    - 对应CI的配置
-- pipeline execution
-    - 对应一次CI的执行，所以依赖对应的pipeline(通过入参 pipelineId)
-- deployment
-    - 对应CD
-    - 生成的镜像image，会直接通过rancher server写入regitry
-        - rancher 的 registry 服务，预先设置好
-- workload
-    - 一个很大的信息集合，主要包括当前 cluster 中的所有活动实体信息
-        - pods（包含containers信息）都在其中
-        - images的信息，rancher目前是通过 workload 这个大实体来传递给前端的
-                    
+* 返回的信息暂未规整，返回的东西比较多             
 
 
 # TODO
