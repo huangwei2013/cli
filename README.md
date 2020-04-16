@@ -1,7 +1,7 @@
 
 
 # 项目说明
-基于rancher/cli项目进行的改造
+基于rancher/cli项目进行的改造，通过调用 rancher api操作 --> k8s --> docker
 * 适用于 rancher2.x
 * 主要依赖
     * rancher/types       // rancher2.x API库
